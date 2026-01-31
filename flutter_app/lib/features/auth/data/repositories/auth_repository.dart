@@ -158,6 +158,7 @@ class AuthRepository {
         OAuthProvider.google,
         redirectTo: SupabaseConfig.redirectUrl,
         authScreenLaunchMode: LaunchMode.externalApplication,
+        scopes: 'openid email profile https://www.googleapis.com/auth/youtube',
       );
 
       // If successful, the OAuth flow will complete in the browser

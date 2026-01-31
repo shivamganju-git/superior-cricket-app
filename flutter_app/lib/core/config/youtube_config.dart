@@ -22,5 +22,10 @@ class YouTubeConfig {
   
   // YouTube Data API v3 base URL
   static const String apiBaseUrl = 'https://www.googleapis.com/youtube/v3';
+
+  // OAuth 2.0 Client Credentials (REQUIRED for token refresh)
+  // Get these from Google Cloud Console → Credentials → OAuth 2.0 Client IDs
+  static const String clientId = '17659429390-n9gubiec2mvpst2ji3gn4i5hv7brh6it.apps.googleusercontent.com';
+  static const String clientSecret = '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';
 }
 

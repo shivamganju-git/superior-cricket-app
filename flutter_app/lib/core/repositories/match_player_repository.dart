@@ -56,6 +56,13 @@ class MatchPlayerRepository {
             continue; // Skip players without IDs
           }
           
+          // Validate UUID format (prevents crashing on demo-1, demo-2, etc.)
+          final uuidRegex = RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+          if (!uuidRegex.hasMatch(playerId)) {
+            print('MatchPlayer: ⚠️ Skipping player "$playerName" - invalid UUID format: $playerId');
+            continue;
+          }
+          
           final playerData = {
             'match_id': matchId,
             'player_id': playerId,

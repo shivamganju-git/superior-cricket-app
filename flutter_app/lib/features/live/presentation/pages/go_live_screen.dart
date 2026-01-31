@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,7 +8,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
+import 'package:rtmp_broadcaster/camera.dart';
+import '../../../../core/services/youtube_api_service.dart';
+
 
 /// Go Live Screen
 /// Allows user to start live streaming from their camera
@@ -31,6 +35,7 @@ class GoLiveScreen extends ConsumerStatefulWidget {
 
 class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   CameraController? _cameraController;
+  final GlobalKey _scoreboardKey = GlobalKey();
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
   bool _isStreaming = false;
@@ -41,6 +46,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   String? _rtmpUrl;
   String? _hlsPlaybackUrl;
   Timer? _statusCheckTimer;
+  String? _youtubeBroadcastId;
+  String? _youtubeStreamId;
+  String? _youtubeStreamKey;
+
   
   // Live Scoreboard Data
   Map<String, dynamic>? _liveScorecard;
@@ -117,8 +126,9 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
       _cameraController = CameraController(
         backCamera,
-        ResolutionPreset.high,
+        ResolutionPreset.medium, // Lowered from high for latency
         enableAudio: true,
+        androidUseOpenGL: true, // Enable OpenGL for potential filter support
       );
 
       await _cameraController!.initialize();
@@ -184,58 +194,168 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     });
 
     try {
-      // Get YouTube stream key from backend (secure) - optional
-      String? youtubeStreamKey;
+      // 1. Assign a Pitch Point YouTube Channel from the pool
+      String? accessToken;
       try {
-        youtubeStreamKey = await _getYouTubeStreamKey();
-      } catch (e) {
-        print('YouTube stream key not available (function not deployed): $e');
-        // Continue without YouTube restreaming
+        final channelData = await YouTubeApiService.assignChannel(widget.matchId);
+        accessToken = channelData['access_token'];
+        _youtubeStreamKey = channelData['stream_key'];
+        
+        print('✅ Assigned Pitch Point Channel: ${channelData['channel_id']}');
+      } catch (poolError) {
+        print('❌ Channel Pool assignment failed: $poolError');
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('YouTube Assignment Failed: ${poolError.toString().replaceFirst('Exception: ', '')}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+        setState(() => _isLoading = false);
+        return; // BLOCK ACTION
       }
       
-      // ============================================
-      // TEMPORARY BYPASS: Comment out Mux for testing scoreboard
-      // Uncomment when Mux PRO plan is activated
-      // ============================================
-      
-      // Create Mux live stream (COMMENTED OUT FOR TESTING)
-      /*
-      final muxResponse = await MuxService.createLiveStream(
-        matchId: widget.matchId,
-        matchTitle: widget.matchTitle,
-        youtubeStreamKey: youtubeStreamKey,
-        shouldRecord: shouldRecord,
-      );
-      */
-      
-      // MOCK RESPONSE FOR TESTING SCOREBOARD
-      final muxResponse = MuxLiveStreamResponse(
-        id: 'mock-stream-${DateTime.now().millisecondsSinceEpoch}',
-        rtmpUrl: 'rtmp://mock.stream/live/${widget.matchId}',
-        hlsPlaybackUrl: 'https://mock.stream/${widget.matchId}/playlist.m3u8',
-        status: 'active',
-      );
+      if (accessToken != null) {
+        try {
+            // 2. Create YouTube Broadcast on assigned channel
+            final broadcast = await YouTubeApiService.createLiveBroadcast(
+                accessToken: accessToken,
+                title: widget.matchTitle,
+                description: 'Live cricket match: ${widget.matchTitle}',
+                scheduledStartTime: DateTime.now(),
+                privacyStatus: 'public',
+            );
+            _youtubeBroadcastId = broadcast['id'];
+            
+            // 3. Get/Create Live Stream settings
+            // If the assigned channel has a persistent stream_key, we use that.
+            // Otherwise we create a new temporary one.
+            if (_youtubeStreamKey == null) {
+                final stream = await YouTubeApiService.createLiveStream(
+                    accessToken: accessToken,
+                    title: 'PitchPoint Stream - ${widget.matchId}',
+                );
+                _youtubeStreamId = stream['id'];
+                _youtubeStreamKey = stream['cdn']['ingestionInfo']['streamName'];
+                
+                // Bind Broadcast to Stream
+                await YouTubeApiService.bindBroadcast(
+                    accessToken: accessToken,
+                    broadcastId: _youtubeBroadcastId!,
+                    streamId: _youtubeStreamId!,
+                );
+            }
+            
+            print('✅ YouTube Broadcast created: $_youtubeBroadcastId');
+        } catch (ytError) {
+            print('⚠️ YouTube Integration failed (proceeding without yt): $ytError');
+            // We'll proceed with just Mux if YouTube fails
+        }
+      }
 
-      setState(() {
-        _muxStreamId = muxResponse.id;
-        _rtmpUrl = muxResponse.rtmpUrl;
-        _hlsPlaybackUrl = muxResponse.hlsPlaybackUrl;
-      });
+      // Get YouTube stream key from backend (secure) - optional
+      // Priority: 1. Locally generated (from OAuth), 2. Backend provided
+      String? youtubeStreamKey = _youtubeStreamKey;
+      if (youtubeStreamKey == null) {
+        try {
+            youtubeStreamKey = await _getYouTubeStreamKey();
+        } catch (e) {
+            print('YouTube stream key not available from backend: $e');
+        }
+      }
+      
+      MuxLiveStreamResponse? muxResponse;
+      try {
+        muxResponse = await MuxService.createLiveStream(
+          matchId: widget.matchId,
+          matchTitle: widget.matchTitle,
+          youtubeStreamKey: youtubeStreamKey,
+          shouldRecord: shouldRecord,
+        );
+
+        setState(() {
+          _muxStreamId = muxResponse!.id;
+          _rtmpUrl = muxResponse.rtmpUrl;
+          _hlsPlaybackUrl = muxResponse.hlsPlaybackUrl;
+        });
+      } catch (muxError) {
+        print('⚠️ Mux creation failed: $muxError');
+        
+        // CHECK FOR FALLBACK: If Mux fails but we have a YouTube stream key, 
+        // we can stream DIRECTLY to YouTube (bypassing Mux).
+        if (youtubeStreamKey != null && youtubeStreamKey.isNotEmpty) {
+          print('🚀 Using Direct YouTube Fallback...');
+          setState(() {
+            _muxStreamId = 'youtube-fallback';
+            _rtmpUrl = 'rtmp://a.rtmp.youtube.com/live2/$youtubeStreamKey';
+            _hlsPlaybackUrl = 'https://www.youtube.com/watch?v=$_youtubeBroadcastId';
+          });
+          
+          // Create a mock response for _saveStreamInfo
+          muxResponse = MuxLiveStreamResponse(
+            id: 'youtube-fallback',
+            status: 'active',
+            rtmpUrl: _rtmpUrl,
+            hlsPlaybackUrl: _hlsPlaybackUrl,
+          );
+        } else {
+          // If no YouTube fallback possible, rethrow to global catch
+          rethrow;
+        }
+      }
 
       // Save stream info to database
-      await _saveStreamInfo(muxResponse);
-
-      // Start RTMP streaming (using flutter_rtmp_publisher)
-      // Note: This is a placeholder - actual RTMP streaming implementation
-      // would use the flutter_rtmp_publisher package
-      if (_rtmpUrl != null) {
-        // TODO: Implement actual RTMP streaming using flutter_rtmp_publisher
-        // For now, we'll simulate it
-        await _startRTMPStream(_rtmpUrl!);
+      if (muxResponse != null) {
+        await _saveStreamInfo(muxResponse);
       }
 
       // Signal Mux that stream is active (BYPASS FOR TESTING)
       // await MuxService.signalStreamActive(muxResponse.id);
+
+      // If YouTube was created, transition it to 'live' after stream starts
+      if (accessToken != null && _youtubeBroadcastId != null) {
+          // Note: Standard workflow is testing -> live
+          // But with enableAutoStart=true, it might start automatically
+          // We'll transition to live just in case
+          try {
+              await YouTubeApiService.transitionBroadcast(
+                  accessToken: accessToken,
+                  broadcastId: _youtubeBroadcastId!,
+                  status: 'live',
+              );
+              
+              // Save video info for later replay
+              await YouTubeApiService.saveMatchVideo(
+                matchId: widget.matchId,
+                videoId: _youtubeBroadcastId!,
+              );
+          } catch (e) {
+              print('Error transitioning to live: $e');
+          }
+      }
+
+      // Start RTMP streaming
+      if (_rtmpUrl != null) {
+        await _startRTMPStream(_rtmpUrl!);
+      }
+
+      // If YouTube was created, transition it to 'live' after stream starts
+      if (accessToken != null && _youtubeBroadcastId != null) {
+          // Note: Standard workflow is testing -> live
+          // But with enableAutoStart=true, it might start automatically
+          // We'll transition to live just in case
+          try {
+              await YouTubeApiService.transitionBroadcast(
+                  accessToken: accessToken,
+                  broadcastId: _youtubeBroadcastId!,
+                  status: 'live',
+              );
+          } catch (e) {
+              print('Error transitioning to live: $e');
+          }
+      }
 
       setState(() {
         _isStreaming = true;
@@ -289,8 +409,30 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
     try {
       // Stop RTMP stream
-      // TODO: Stop actual RTMP streaming
+      if (_cameraController != null && _isStreaming) {
+        await _cameraController!.stopVideoStreaming();
+      }
       
+      // Transition YouTube broadcast to complete
+      if (_youtubeBroadcastId != null) {
+          try {
+              // Get assigned channel credentials to transition status
+              final channelData = await YouTubeApiService.getAssignedChannel(widget.matchId);
+              final accessToken = channelData['access_token'];
+              
+              await YouTubeApiService.transitionBroadcast(
+                  accessToken: accessToken,
+                  broadcastId: _youtubeBroadcastId!,
+                  status: 'complete',
+              );
+          } catch (e) {
+              print('Error completing YouTube broadcast: $e');
+          } finally {
+              // RELEASE CHANNEL
+              await YouTubeApiService.releaseChannel(widget.matchId);
+          }
+      }
+
       // Delete Mux live stream (BYPASS FOR TESTING)
       // if (_muxStreamId != null) {
       //   await MuxService.deleteLiveStream(_muxStreamId!);
@@ -373,28 +515,27 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   Future<void> _startRTMPStream(String rtmpUrl) async {
-    // TODO: Implement actual RTMP streaming via platform channels
-    // RTMP streaming requires native implementation:
-    // - Android: Use MediaRecorder or ExoPlayer with RTMP library
-    // - iOS: Use AVFoundation with RTMP library
-    // 
-    // For now, this is a placeholder. The Mux stream is created and ready,
-    // but actual camera-to-RTMP streaming needs native code implementation.
-    // 
-    // You can use libraries like:
-    // - Android: https://github.com/pedroSG94/rtmp-rtsp-stream-client-java
-    // - iOS: https://github.com/pedroSG94/rtmp-rtsp-stream-client-ios
-    // 
-    // Then create Flutter platform channels to bridge to native code.
-    
-    // For now, just simulate stream creation
-    await Future.delayed(const Duration(seconds: 2));
-    
-    // Note: In production, you would:
-    // 1. Initialize native RTMP streamer
-    // 2. Connect camera feed to RTMP encoder
-    // 3. Start streaming to rtmpUrl
-    // 4. Handle errors and reconnection
+    if (_cameraController == null) return;
+
+    try {
+      print('🚀 Starting RTMP Stream (800kbps) to: $rtmpUrl');
+      await _cameraController!.startVideoStreaming(
+        rtmpUrl,
+        bitrate: 800 * 1024, // Optimized from 1200kbps
+      );
+      print('✅ RTMP Stream started successfully');
+    } catch (e) {
+      print('❌ Error starting RTMP stream: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to start video stream: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      rethrow;
+    }
   }
 
   void _startStatusCheck() {
@@ -444,6 +585,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           _tossWinner = response['toss_winner'];
           _tossDecision = response['toss_decision'];
         });
+
+        // Trigger overlay refresh for RTMP stream
+        if (_isStreaming) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateStreamOverlay();
+          });
+        }
       }
     } catch (e) {
       print('Error fetching initial scorecard: $e');
@@ -452,6 +600,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
 // REAL DATA SCOREBOARD - Replace _buildLiveScoreboardOverlay
   Widget _buildLiveScoreboardOverlay() {
+    return RepaintBoundary(
+      key: _scoreboardKey,
+      child: _buildScoreboardContent(),
+    );
+  }
+
+  Widget _buildScoreboardContent() {
     // Use Mock Data if null to ensure visibility
     Map<String, dynamic> card = (_liveScorecard != null && _liveScorecard!.isNotEmpty) 
         ? _liveScorecard! 
@@ -969,7 +1124,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                             ),),
                     
                     // Live Scoreboard Overlay
-                    if (_isStreaming && _liveScorecard != null)
+                    if (_isStreaming && (_liveScorecard != null || true)) // Alway show for now to ensure visibility
                       _buildLiveScoreboardOverlay(),
                     
                     // Top Right Live Indicator
@@ -1108,6 +1263,30 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _updateStreamOverlay() async {
+    if (!_isStreaming || _cameraController == null) return;
+
+    try {
+      final boundary = _scoreboardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) {
+        print('Overlay boundary not found');
+        return;
+      }
+
+      // Capture with higher pixel ratio for better quality on stream
+      final image = await boundary.toImage(pixelRatio: 2.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      
+      if (byteData != null) {
+        final bytes = byteData.buffer.asUint8List();
+        print('Pushing overlay to stream: ${bytes.length} bytes');
+        await _cameraController!.setOverlay(bytes);
+      }
+    } catch (e) {
+      print('Error updating stream overlay: $e');
+    }
   }
 
   void _showStopStreamDialog() {

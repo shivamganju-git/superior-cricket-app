@@ -55,10 +55,9 @@ dependencies:
   youtube_player_flutter: ^9.0.0
   
   # Camera & Live Streaming
-  camera: ^0.10.5+5
   permission_handler: ^11.3.0
-  # Note: RTMP streaming will be implemented via platform channels
-  # For now, we'll use Mux API to create streams and handle RTMP via native code
+  rtmp_broadcaster:
+    path: ./packages/rtmp_broadcaster
   
   # WebView for YouTube IFrame Player
   webview_flutter: ^4.4.2
