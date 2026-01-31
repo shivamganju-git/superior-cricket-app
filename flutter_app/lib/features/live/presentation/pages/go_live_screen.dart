@@ -46,6 +46,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   String? _rtmpUrl;
   String? _hlsPlaybackUrl;
   Timer? _statusCheckTimer;
+  Timer? _overlayUpdateTimer;
   String? _youtubeBroadcastId;
   String? _youtubeStreamId;
   String? _youtubeStreamKey;
@@ -95,6 +96,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   void dispose() {
     _cameraController?.dispose();
     _statusCheckTimer?.cancel();
+    _scorecardPollTimer?.cancel();
+    _overlayUpdateTimer?.cancel();
     super.dispose();
   }
 
@@ -364,6 +367,30 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
 
       // Start periodic status check
       _startStatusCheck();
+      
+      // Start scorecard polling if not already started
+      if (_scorecardPollTimer == null || !_scorecardPollTimer!.isActive) {
+        _subscribeToLiveScorecard();
+      }
+      
+      // Start periodic overlay updates to ensure it stays in sync
+      _overlayUpdateTimer?.cancel();
+      _overlayUpdateTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+        if (mounted && _isStreaming) {
+          _updateStreamOverlay();
+        } else {
+          timer.cancel();
+        }
+      });
+      
+      // Initial overlay update after stream starts
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && _isStreaming) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateStreamOverlay();
+          });
+        }
+      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -442,6 +469,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       await _updateStreamStatus('ended');
 
       _statusCheckTimer?.cancel();
+      _scorecardPollTimer?.cancel();
+      _overlayUpdateTimer?.cancel();
 
       setState(() {
         _isStreaming = false;
@@ -554,13 +583,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     });
   }
 
+  Timer? _scorecardPollTimer;
+  
   // Subscribe to live scorecard updates (using polling)
   void _subscribeToLiveScorecard() {
     // Fetch initial scorecard
     _fetchInitialScorecard();
     
     // Poll for updates every 2 seconds
-    Timer.periodic(const Duration(seconds: 2), (timer) {
+    _scorecardPollTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
       if (mounted && _isStreaming) {
         _fetchInitialScorecard();
       } else {
@@ -573,11 +604,13 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     try {
       final response = await SupabaseConfig.client
           .from('matches')
-          .select('scorecard, team1_name, team2_name')
+          .select('scorecard, team1_name, team2_name, toss_winner, toss_decision')
           .eq('id', widget.matchId)
           .single();
       
       if (mounted && response != null) {
+        final previousScorecard = _liveScorecard;
+        
         setState(() {
           _liveScorecard = response['scorecard'];
           _team1Name = response['team1_name'];
@@ -586,10 +619,23 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           _tossDecision = response['toss_decision'];
         });
 
-        // Trigger overlay refresh for RTMP stream
+        // Trigger overlay refresh for RTMP stream - update whenever scorecard changes
         if (_isStreaming) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _updateStreamOverlay();
+          // Check if scorecard actually changed
+          final scorecardChanged = previousScorecard != _liveScorecard;
+          
+          if (scorecardChanged) {
+            print('📊 Scorecard updated - refreshing overlay');
+          }
+          
+          // Always update overlay after a short delay to ensure UI is rendered
+          // The periodic timer will also update it, but this ensures immediate updates on changes
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted && _isStreaming) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _updateStreamOverlay();
+              });
+            }
           });
         }
       }
@@ -661,7 +707,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     final oversDisplay = '$oversInt.$balls';
 
     return Positioned(
-      bottom: 100, // Positioned ABOVE the Stop Streaming button
+      bottom: 120, // Positioned ABOVE the Stop Streaming button with more space
       left: 12,
       right: 12,
       child: Column(
@@ -1127,27 +1173,56 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                     if (_isStreaming && (_liveScorecard != null || true)) // Alway show for now to ensure visibility
                       _buildLiveScoreboardOverlay(),
                     
-                    // Top Right Live Indicator
+                    // Top Right Live Indicator - Animated
                     if (_isStreaming)
                       Positioned(
                         top: 40,
                         right: 16,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black38, blurRadius: 4, spreadRadius: 1)
-                            ]
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.fiber_manual_record, size: 12, color: Colors.white),
-                              SizedBox(width: 6),
-                              Text('LIVE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            ],
+                        child: _LiveIndicator(),
+                      ),
+                    
+                    // Floating Stop Button - Always visible when streaming
+                    if (_isStreaming)
+                      Positioned(
+                        top: 40,
+                        left: 16,
+                        child: SafeArea(
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _isLoading ? null : _stopStreaming,
+                              borderRadius: BorderRadius.circular(30),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.red.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(30),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      spreadRadius: 2,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.stop_circle, size: 20, color: Colors.white),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'STOP',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -1269,9 +1344,18 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     if (!_isStreaming || _cameraController == null) return;
 
     try {
+      // Wait a bit for the widget to render
+      await Future.delayed(const Duration(milliseconds: 100));
+      
       final boundary = _scoreboardKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) {
-        print('Overlay boundary not found');
+        print('⚠️ Overlay boundary not found - retrying...');
+        // Retry after a short delay
+        Future.delayed(const Duration(milliseconds: 200), () {
+          if (mounted && _isStreaming) {
+            _updateStreamOverlay();
+          }
+        });
         return;
       }
 
@@ -1281,11 +1365,15 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
       
       if (byteData != null) {
         final bytes = byteData.buffer.asUint8List();
-        print('Pushing overlay to stream: ${bytes.length} bytes');
+        print('✅ Pushing overlay to stream: ${bytes.length} bytes');
         await _cameraController!.setOverlay(bytes);
+        print('✅ Overlay updated successfully on stream');
+      } else {
+        print('⚠️ Failed to convert overlay to bytes');
       }
     } catch (e) {
-      print('Error updating stream overlay: $e');
+      print('❌ Error updating stream overlay: $e');
+      // Don't throw - just log the error so streaming continues
     }
   }
 
@@ -1293,22 +1381,100 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Stop Streaming?'),
-        content: const Text('Are you sure you want to stop the live stream?'),
+        backgroundColor: Colors.grey[900],
+        title: const Text('Stop Streaming?', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Are you sure you want to stop the live stream?',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white70)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _stopStreaming();
             },
-            child: const Text('Stop', style: TextStyle(color: Colors.red)),
+            child: const Text('Stop', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
+    );
+  }
+}
+
+// Animated Live Indicator Widget
+class _LiveIndicator extends StatefulWidget {
+  @override
+  State<_LiveIndicator> createState() => _LiveIndicatorState();
+}
+
+class _LiveIndicatorState extends State<_LiveIndicator> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _animation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.red,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(_animation.value * 0.5),
+                blurRadius: 8 * _animation.value,
+                spreadRadius: 2 * _animation.value,
+              ),
+              BoxShadow(
+                color: Colors.black38,
+                blurRadius: 4,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.fiber_manual_record, size: 12, color: Colors.white),
+              SizedBox(width: 6),
+              Text(
+                'LIVE',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/cricket_engine/models/delivery_model.dart';
 import 'dart:math' as math;
 
@@ -276,23 +277,35 @@ class MatchAnalyticsWidgets {
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                       ),
-                    ),
+                    )
+                      .animate()
+                      .fadeIn(duration: 400.ms)
+                      .slideX(begin: -0.2, end: 0, curve: Curves.easeOut),
                     const SizedBox(width: 8),
                     Tooltip(
                       message: 'Shows the distribution of runs across the field',
                       triggerMode: TooltipTriggerMode.tap,
-                      child: Icon(Icons.info_outline, size: 16, color: Colors.grey[400]),
+                      child: Icon(Icons.info_outline, size: 16, color: Colors.grey[400])
+                        .animate()
+                        .fadeIn(duration: 400.ms, delay: 100.ms)
+                        .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
                     ),
                   ],
                 ),
-                Icon(Icons.pie_chart_outline_rounded, size: 20, color: Colors.grey[400]),
+                Icon(Icons.pie_chart_outline_rounded, size: 20, color: Colors.grey[400])
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 100.ms)
+                  .rotate(begin: -0.1, end: 0, duration: 500.ms, delay: 100.ms),
               ],
             ),
             const SizedBox(height: 8),
             Text(
               teamName,
               style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500),
-            ),
+            )
+              .animate()
+              .fadeIn(duration: 400.ms, delay: 150.ms)
+              .slideX(begin: -0.1, end: 0),
             const SizedBox(height: 24),
             Expanded(
               child: Center(
@@ -318,11 +331,12 @@ class MatchAnalyticsWidgets {
                           'assets/images/cricket_ground.png',
                           fit: BoxFit.cover,
                         ),
-                      ),
-                      // Layer 2: Shot Analysis Overlay
-                      CustomPaint(
-                        painter: WagonWheelPainter(deliveries),
-                      ),
+                      )
+                        .animate()
+                        .fadeIn(duration: 500.ms, delay: 200.ms)
+                        .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1), duration: 600.ms, delay: 200.ms),
+                      // Layer 2: Shot Analysis Overlay - Animated
+                      _AnimatedWagonWheel(deliveries: deliveries),
                     ],
                   ),
                 ),
@@ -335,12 +349,12 @@ class MatchAnalyticsWidgets {
               runSpacing: 8,
               alignment: WrapAlignment.center,
               children: [
-                _buildWagonWheelLegendItem('Out', Colors.orange),
-                _buildWagonWheelLegendItem("0's", Colors.grey[300]!),
-                _buildWagonWheelLegendItem("1's", Colors.lightBlue),
-                _buildWagonWheelLegendItem("2's & 3's", Colors.yellow[700]!),
-                _buildWagonWheelLegendItem("4's", Colors.purple),
-                _buildWagonWheelLegendItem("6's", Colors.red),
+                _buildWagonWheelLegendItem('Out', Colors.orange, 0),
+                _buildWagonWheelLegendItem("0's", Colors.grey[300]!, 1),
+                _buildWagonWheelLegendItem("1's", Colors.lightBlue, 2),
+                _buildWagonWheelLegendItem("2's & 3's", Colors.yellow[700]!, 3),
+                _buildWagonWheelLegendItem("4's", Colors.purple, 4),
+                _buildWagonWheelLegendItem("6's", Colors.red, 5),
               ],
             ),
           ],
@@ -725,13 +739,24 @@ class MatchAnalyticsWidgets {
     required String teamName,
   }) {
     final partnerships = _calculatePartnerships(deliveries);
+    
+    // Calculate dynamic height based on number of partnerships
+    // Each partnership container is ~140px (padding + content + margin) - increased size
+    final baseHeight = 100.0; // Header + team name + spacing
+    final itemHeight = 140.0; // Height per partnership container (increased from 100)
+    final minHeight = 200.0;
+    final maxHeight = 600.0; // Increased max height before scrolling kicks in
+    final calculatedHeight = baseHeight + (partnerships.length * itemHeight);
+    // Container grows up to maxHeight, then enables scrolling
+    final containerHeight = calculatedHeight.clamp(minHeight, maxHeight);
+    final needsScrolling = calculatedHeight > maxHeight;
 
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       color: Colors.white,
       child: Container(
-        height: 400,
+        height: containerHeight,
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -746,8 +771,14 @@ class MatchAnalyticsWidgets {
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                   ),
-                ),
-                Icon(Icons.people_outline_rounded, size: 20, color: Colors.grey[400]),
+                )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideX(begin: -0.2, end: 0, curve: Curves.easeOut),
+                Icon(Icons.people_outline_rounded, size: 20, color: Colors.grey[400])
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 100.ms)
+                  .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
               ],
             ),
             const SizedBox(height: 8),
@@ -757,13 +788,24 @@ class MatchAnalyticsWidgets {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: ListView.builder(
-                itemCount: partnerships.length,
-                itemBuilder: (context, index) {
-                  final p = partnerships[index];
-                  return _buildPartnershipBar(p);
-                },
-              ),
+              child: partnerships.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No partnerships data available',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      ),
+                    )
+                  : ListView.builder(
+                      shrinkWrap: false,
+                      physics: needsScrolling 
+                          ? const AlwaysScrollableScrollPhysics() 
+                          : const ClampingScrollPhysics(),
+                      itemCount: partnerships.length,
+                      itemBuilder: (context, index) {
+                        final p = partnerships[index];
+                        return _buildPartnershipBar(p, index);
+                      },
+                    ),
             ),
           ],
         ),
@@ -991,8 +1033,15 @@ class MatchAnalyticsWidgets {
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
                   ),
-                ),
-                Icon(Icons.pie_chart_outline_rounded, size: 20, color: Colors.grey[400]),
+                )
+                  .animate()
+                  .fadeIn(duration: 400.ms)
+                  .slideX(begin: -0.2, end: 0, curve: Curves.easeOut),
+                Icon(Icons.pie_chart_outline_rounded, size: 20, color: Colors.grey[400])
+                  .animate()
+                  .fadeIn(duration: 400.ms, delay: 100.ms)
+                  .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1))
+                  .rotate(begin: -0.1, end: 0, duration: 500.ms, delay: 100.ms),
               ],
             ),
             const SizedBox(height: 24),
@@ -1015,15 +1064,21 @@ class MatchAnalyticsWidgets {
                     );
                   }).toList(),
                 ),
-              ),
+              )
+                .animate()
+                .fadeIn(duration: 600.ms, delay: 200.ms)
+                .scale(begin: const Offset(0.5, 0.5), end: const Offset(1, 1), duration: 800.ms, delay: 200.ms, curve: Curves.elasticOut)
+                .rotate(begin: -0.3, end: 0, duration: 800.ms, delay: 200.ms, curve: Curves.easeOutCubic),
             ),
             const SizedBox(height: 24),
             // Legend
             Wrap(
               spacing: 16,
               runSpacing: 8,
-              children: wicketTypes.entries.map((entry) {
-                return _buildWicketLegendItem(entry.key, _getWicketTypeColor(entry.key));
+              children: wicketTypes.entries.toList().asMap().entries.map((mapEntry) {
+                final index = mapEntry.key;
+                final entry = mapEntry.value;
+                return _buildWicketLegendItem(entry.key, _getWicketTypeColor(entry.key), index);
               }).toList(),
             ),
           ],
@@ -1203,58 +1258,124 @@ class MatchAnalyticsWidgets {
     return partnerships;
   }
 
-  static Widget _buildPartnershipBar(Map<String, dynamic> partnership) {
+  static Widget _buildPartnershipBar(Map<String, dynamic> partnership, int index) {
     final player1 = partnership['player1'] as String? ?? 'Unknown';
     final player2 = partnership['player2'] as String? ?? 'Unknown';
     final runs = partnership['runs'] as int? ?? 0;
     final balls = partnership['balls'] as int? ?? 0;
     
+    // Calculate max runs for scaling (use 100 as base, or actual max if higher)
+    final maxRuns = math.max(100, runs);
+    final widthFactor = runs / maxRuns;
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 2,
-            child: Text(
-              '$player1 $runs($balls)',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Stack(
-              children: [
-                Container(
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                FractionallySizedBox(
-                  widthFactor: runs / 100.0,
-                  child: Container(
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Colors.blue,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              '$player2',
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.right,
-            ),
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-    );
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  player1,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                    letterSpacing: 0.3,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.blue.withOpacity(0.3), width: 1),
+                ),
+                child: Text(
+                  '$runs($balls)',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.blue,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  player2,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                    letterSpacing: 0.3,
+                  ),
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Stack(
+            children: [
+              Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              FractionallySizedBox(
+                widthFactor: widthFactor.clamp(0.0, 1.0),
+                child: Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue[400]!, Colors.blue[600]!],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.4),
+                        blurRadius: 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                )
+                  .animate()
+                  .scaleX(begin: 0, end: 1, duration: 600.ms, delay: (index * 100).ms, curve: Curves.easeOutCubic),
+              ),
+            ],
+          ),
+        ],
+      ),
+    )
+      .animate()
+      .fadeIn(duration: 400.ms, delay: (index * 80).ms)
+      .slideY(begin: 0.2, end: 0, duration: 400.ms, delay: (index * 80).ms, curve: Curves.easeOutCubic)
+      .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1), duration: 400.ms, delay: (index * 80).ms);
   }
 
   static Widget _buildLegendItem(String label, Color color) {
@@ -1277,7 +1398,7 @@ class MatchAnalyticsWidgets {
     );
   }
 
-  static Widget _buildWagonWheelLegendItem(String label, Color color) {
+  static Widget _buildWagonWheelLegendItem(String label, Color color, int index) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1288,17 +1409,25 @@ class MatchAnalyticsWidgets {
             color: color,
             shape: BoxShape.rectangle,
           ),
-        ),
+        )
+          .animate()
+          .scale(begin: const Offset(0, 0), end: const Offset(1, 1), duration: 300.ms, delay: (index * 80 + 600).ms, curve: Curves.elasticOut),
         const SizedBox(width: 4),
         Text(
           label,
           style: const TextStyle(fontSize: 11),
-        ),
+        )
+          .animate()
+          .fadeIn(duration: 300.ms, delay: (index * 80 + 650).ms)
+          .slideX(begin: -0.2, end: 0, duration: 300.ms, delay: (index * 80 + 650).ms),
       ],
-    );
+    )
+      .animate()
+      .fadeIn(duration: 400.ms, delay: (index * 80 + 600).ms)
+      .slideY(begin: 0.2, end: 0, duration: 400.ms, delay: (index * 80 + 600).ms, curve: Curves.easeOutCubic);
   }
 
-  static Widget _buildWicketLegendItem(String label, Color color) {
+  static Widget _buildWicketLegendItem(String label, Color color, int index) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1309,14 +1438,22 @@ class MatchAnalyticsWidgets {
             color: color,
             shape: BoxShape.circle,
           ),
-        ),
+        )
+          .animate()
+          .scale(begin: const Offset(0, 0), end: const Offset(1, 1), duration: 300.ms, delay: (index * 100 + 400).ms, curve: Curves.elasticOut),
         const SizedBox(width: 4),
         Text(
           label,
           style: const TextStyle(fontSize: 11),
-        ),
+        )
+          .animate()
+          .fadeIn(duration: 300.ms, delay: (index * 100 + 450).ms)
+          .slideX(begin: -0.2, end: 0, duration: 300.ms, delay: (index * 100 + 450).ms),
       ],
-    );
+    )
+      .animate()
+      .fadeIn(duration: 400.ms, delay: (index * 100 + 400).ms)
+      .slideY(begin: 0.2, end: 0, duration: 400.ms, delay: (index * 100 + 400).ms, curve: Curves.easeOutCubic);
   }
 }
 
@@ -1445,5 +1582,184 @@ class WagonWheelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Animated Wagon Wheel Widget that animates the drawing of boundaries
+class _AnimatedWagonWheel extends StatefulWidget {
+  final List<DeliveryModel> deliveries;
+
+  const _AnimatedWagonWheel({required this.deliveries});
+
+  @override
+  State<_AnimatedWagonWheel> createState() => _AnimatedWagonWheelState();
+}
+
+class _AnimatedWagonWheelState extends State<_AnimatedWagonWheel> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Slower animation - 3.5 seconds for smooth, professional look
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 3500),
+      vsync: this,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOutCubic, // Smoother curve for better visual effect
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return CustomPaint(
+          painter: AnimatedWagonWheelPainter(widget.deliveries, _animation.value),
+        );
+      },
+    );
+  }
+}
+
+/// Animated version of WagonWheelPainter that draws boundaries progressively
+class AnimatedWagonWheelPainter extends CustomPainter {
+  final List<DeliveryModel> deliveries;
+  final double animationValue;
+
+  AnimatedWagonWheelPainter(this.deliveries, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) * 0.9;
+    final shotOrigin = center;
+
+    // Filter and get all valid deliveries
+    final validDeliveries = deliveries.where((d) => d.isLegalBall && d.runs > 0).toList();
+    final totalDeliveries = validDeliveries.length;
+    
+    if (totalDeliveries == 0) return;
+
+    // Animate each boundary independently with smooth, slow progression
+    for (int i = 0; i < validDeliveries.length; i++) {
+      final d = validDeliveries[i];
+      final angle = _getShotAngle(d);
+      final distance = _getShotDistance(d.runs);
+      
+      // Calculate individual progress for each boundary
+      // Each boundary gets its own animation window with overlap for smooth flow
+      final startTime = i / totalDeliveries * 0.7; // Start earlier for overlap
+      final endTime = startTime + 0.4; // Each boundary takes 40% of total animation
+      
+      // Calculate progress for this specific boundary
+      double lineProgress = 0.0;
+      if (animationValue >= startTime) {
+        final boundaryProgress = ((animationValue - startTime) / (endTime - startTime)).clamp(0.0, 1.0);
+        // Use easeOut curve for smooth deceleration
+        lineProgress = 1 - math.pow(1 - boundaryProgress, 3).toDouble();
+      }
+      
+      // Calculate end point based on progress
+      final endX = center.dx + math.cos(angle) * distance * radius * lineProgress;
+      final endY = center.dy + math.sin(angle) * distance * radius * lineProgress;
+      
+      final isOut = d.wicketType != null;
+      final color = _getShotColor(d.runs, isOut);
+
+      // Draw boundary line with smooth animation
+      if (lineProgress > 0) {
+        // Main boundary line
+        final shotPaint = Paint()
+          ..color = color.withOpacity(0.9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = isOut ? 3.5 : 2.5
+          ..strokeCap = StrokeCap.round;
+        
+        canvas.drawLine(shotOrigin, Offset(endX, endY), shotPaint);
+        
+        // Animate marker appearance smoothly (appears when line is 75% complete)
+        if (lineProgress >= 0.75) {
+          final markerProgress = ((lineProgress - 0.75) / 0.25).clamp(0.0, 1.0);
+          final markerOpacity = markerProgress;
+          final markerSize = (isOut ? 4.0 : 2.5) * markerProgress;
+          final markerPaint = Paint()..color = color.withOpacity(markerOpacity);
+          canvas.drawCircle(Offset(endX, endY), markerSize, markerPaint);
+        }
+        
+        // Animate glow effect for boundaries (4s and 6s) - appears when line is 60% complete
+        if (d.runs >= 4 && lineProgress >= 0.6) {
+          final glowProgress = ((lineProgress - 0.6) / 0.4).clamp(0.0, 1.0);
+          final glowOpacity = glowProgress * 0.4; // Smooth fade in
+          final glowPaint = Paint()
+            ..color = color.withOpacity(glowOpacity)
+            ..strokeWidth = 5
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round;
+          canvas.drawLine(shotOrigin, Offset(endX, endY), glowPaint);
+        }
+      }
+    }
+  }
+
+  double _getShotAngle(DeliveryModel d) {
+    final seed = d.over * 100 + d.ball + d.runs + (d.striker.length);
+    final random = math.Random(seed);
+    
+    double baseAngle;
+    
+    if (d.runs == 6) {
+      final zone = random.nextInt(3); 
+      if (zone == 0) baseAngle = -math.pi / 2;
+      else if (zone == 1) baseAngle = -math.pi / 4;
+      else baseAngle = -3 * math.pi / 4;
+    } else if (d.runs == 4) {
+      final zone = random.nextInt(4);
+      if (zone == 0) baseAngle = 0;
+      else if (zone == 1) baseAngle = math.pi;
+      else if (zone == 2) baseAngle = -math.pi / 2;
+      else baseAngle = math.pi / 4;
+    } else {
+      baseAngle = random.nextDouble() * 2 * math.pi;
+    }
+    
+    final variance = (random.nextDouble() - 0.5) * (math.pi / 4.5);
+    return baseAngle + variance;
+  }
+
+  double _getShotDistance(int runs) {
+    if (runs == 6) return 0.95;
+    if (runs == 4) return 0.85;
+    if (runs >= 2) return 0.6;
+    return 0.3;
+  }
+
+  Color _getShotColor(int runs, bool isOut) {
+    if (isOut) return Colors.orange;
+    if (runs == 0) return Colors.grey[300]!;
+    if (runs == 1) return Colors.lightBlue;
+    if (runs >= 2 && runs <= 3) return Colors.yellow;
+    if (runs == 4) return Colors.purple;
+    if (runs == 6) return Colors.red;
+    return Colors.grey;
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    if (oldDelegate is AnimatedWagonWheelPainter) {
+      return oldDelegate.animationValue != animationValue;
+    }
+    return true;
+  }
 }
 

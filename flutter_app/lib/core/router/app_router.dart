@@ -441,6 +441,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/commentary/:matchId',
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
+          // Match status will be fetched by CommentaryPage if needed
           return CommentaryPage(matchId: matchId, showAppBar: true);
         },
       ),
