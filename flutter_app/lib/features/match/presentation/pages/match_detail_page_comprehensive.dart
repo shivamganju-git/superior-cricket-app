@@ -307,6 +307,7 @@ class _MatchDetailPageComprehensiveState extends ConsumerState<MatchDetailPageCo
           style: TextStyle(
             fontWeight: FontWeight.w600,
             fontSize: 20,
+            color: Colors.white,
           ),
         ),
         backgroundColor: AppColors.primary,

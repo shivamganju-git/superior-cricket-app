@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/config/supabase_config.dart';
@@ -131,24 +132,30 @@ class _ProPageState extends ConsumerState<ProPage> {
     final isPro = authState.user?.subscriptionPlan == 'pro';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFF0A0E27), // Dark background
       appBar: AppBar(
         title: const Text(
           'MEMBERSHIP',
           style: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w900,
             letterSpacing: 2.0,
           ),
-        ),
+        )
+          .animate()
+          .fadeIn(duration: 400.ms)
+          .slideY(begin: -0.2, end: 0),
         centerTitle: true,
-        backgroundColor: const Color(0xFFF0F9FF),
+        backgroundColor: const Color(0xFF0A0E27),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
           onPressed: () => GoRouter.of(context).go('/'),
-        ),
+        )
+          .animate()
+          .fadeIn(duration: 400.ms, delay: 100.ms)
+          .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1)),
       ),
       body: SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
@@ -161,7 +168,10 @@ class _ProPageState extends ConsumerState<ProPage> {
             
             const SizedBox(height: 32),
             
-            _buildSectionHeader('EXCLUSIVE BENEFITS'),
+            _buildSectionHeader('EXCLUSIVE BENEFITS')
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 600.ms)
+              .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1)),
             
             _buildEnhancedBenefitsList(),
             
@@ -175,29 +185,54 @@ class _ProPageState extends ConsumerState<ProPage> {
   Widget _buildEnhancedHero(bool isPro) {
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0xFFF0F9FF),
-            Color(0xFFE0F2FE),
-            Color(0xFFBAE6FD),
+            Color(0xFF1A1F3A),
+            Color(0xFF0F1429),
+            Color(0xFF0A0E27),
           ],
         ),
-        borderRadius: BorderRadius.only(
+        borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(40),
           bottomRight: Radius.circular(40),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 40,
+            spreadRadius: 8,
+            offset: const Offset(0, 15),
+          ),
+        ],
       ),
       padding: const EdgeInsets.fromLTRB(24, 80, 24, 40),
       child: Column(
         children: [
-          _buildBranding(),
+          _buildBranding()
+            .animate()
+            .fadeIn(duration: 500.ms, delay: 100.ms)
+            .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), curve: Curves.elasticOut),
           const SizedBox(height: 32),
-          _buildHeroText(),
+          _buildHeroText()
+            .animate()
+            .fadeIn(duration: 600.ms, delay: 200.ms)
+            .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
+            .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1)),
           const SizedBox(height: 40),
-          if (isPro) _buildActiveBadge() else _buildHeroOffer(),
+          if (isPro) 
+            _buildActiveBadge()
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 400.ms)
+              .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut)
+              .shimmer(duration: 2000.ms, delay: 600.ms, color: Colors.green.withOpacity(0.3))
+          else 
+            _buildHeroOffer()
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 400.ms)
+              .slideY(begin: 0.2, end: 0),
         ],
       ),
     );
@@ -205,14 +240,17 @@ class _ProPageState extends ConsumerState<ProPage> {
 
   Widget _buildActiveBadge() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.green,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00E676), Color(0xFF00C853)],
+        ),
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.3),
-            blurRadius: 15,
+            color: Colors.green.withOpacity(0.5),
+            blurRadius: 20,
+            spreadRadius: 2,
             offset: const Offset(0, 8),
           ),
         ],
@@ -220,15 +258,15 @@ class _ProPageState extends ConsumerState<ProPage> {
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.verified, color: Colors.white, size: 20),
-          SizedBox(width: 8),
+          Icon(Icons.verified, color: Colors.white, size: 22),
+          SizedBox(width: 10),
           Text(
             'PRO MEMBER',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w900,
-              fontSize: 14,
-              letterSpacing: 1.2,
+              fontSize: 15,
+              letterSpacing: 1.5,
             ),
           ),
         ],
@@ -240,29 +278,51 @@ class _ProPageState extends ConsumerState<ProPage> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.5),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white),
-          ),
-          child: const Text(
-            'SPECIAL APP LAUNCH OFFER',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-              letterSpacing: 1.0,
+            gradient: LinearGradient(
+              colors: [
+                AppColors.primary.withOpacity(0.2),
+                AppColors.primary.withOpacity(0.1),
+              ],
             ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.primary.withOpacity(0.3), width: 1.5),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withOpacity(0.3),
+                blurRadius: 15,
+                spreadRadius: 1,
+              ),
+            ],
           ),
-        ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.local_fire_department, color: AppColors.primary, size: 16),
+              const SizedBox(width: 8),
+              const Text(
+                'SPECIAL APP LAUNCH OFFER',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        )
+          .animate()
+          .scale(begin: const Offset(0.8, 0.8), end: const Offset(1, 1), curve: Curves.elasticOut)
+          .shimmer(duration: 2000.ms, delay: 600.ms, color: AppColors.primary.withOpacity(0.3)),
         const SizedBox(height: 16),
         const Text(
           'Empower your game with professional data\nand live broadcasting tools.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 14,
-            color: Colors.black54,
+            fontSize: 15,
+            color: Colors.white70,
             height: 1.5,
             fontWeight: FontWeight.w500,
           ),
@@ -282,12 +342,16 @@ class _ProPageState extends ConsumerState<ProPage> {
             child: Text(
               'Select Your Path',
               style: TextStyle(
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.w900,
-                color: Colors.black87,
+                color: Colors.white,
+                letterSpacing: 0.5,
               ),
             ),
-          ),
+          )
+            .animate()
+            .fadeIn(duration: 400.ms, delay: 100.ms)
+            .slideX(begin: -0.2, end: 0),
           Row(
             children: [
               Expanded(
@@ -298,7 +362,11 @@ class _ProPageState extends ConsumerState<ProPage> {
                   onTap: () => setState(() => _selectedPlan = 'basic'),
                   features: ['Scoring', 'Profile'],
                   isProCard: false,
-                ),
+                )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 200.ms)
+                  .slideX(begin: -0.3, end: 0, curve: Curves.easeOutCubic)
+                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -311,12 +379,23 @@ class _ProPageState extends ConsumerState<ProPage> {
                   features: ['Live Streaming', 'Analytics', 'MVP Data'],
                   isProCard: true,
                   badge: 'BEST VALUE',
-                ),
+                )
+                  .animate()
+                  .fadeIn(duration: 500.ms, delay: 300.ms)
+                  .slideX(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
+                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1))
+                  .then(delay: 400.ms)
+                  .shimmer(duration: 2000.ms, color: AppColors.primary.withOpacity(0.3)),
               ),
             ],
           ),
           const SizedBox(height: 32),
-          if (!isPro) _buildModernSubscribeButton(),
+          if (!isPro) 
+            _buildModernSubscribeButton()
+              .animate()
+              .fadeIn(duration: 500.ms, delay: 500.ms)
+              .slideY(begin: 0.3, end: 0, curve: Curves.easeOutCubic)
+              .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1)),
         ],
       ),
     );
@@ -337,22 +416,44 @@ class _ProPageState extends ConsumerState<ProPage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: isProCard && isSelected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF1E3A5F),
+                    const Color(0xFF0F1F3A),
+                    const Color(0xFF0A1529),
+                  ],
+                )
+              : null,
+          color: isProCard && isSelected 
+              ? null 
+              : (isSelected ? const Color(0xFF1A1F2E) : const Color(0xFF151925)),
           borderRadius: BorderRadius.circular(32),
           border: Border.all(
             color: isSelected 
-                ? (isProCard ? AppColors.primary : Colors.black87)
-                : Colors.grey[200]!,
-            width: isSelected ? 2.5 : 1,
+                ? (isProCard 
+                    ? AppColors.primary 
+                    : Colors.white.withOpacity(0.3))
+                : Colors.white.withOpacity(0.1),
+            width: isSelected ? (isProCard ? 3 : 2) : 1.5,
           ),
           boxShadow: [
-            if (isSelected)
+            if (isSelected && isProCard)
               BoxShadow(
-                color: (isProCard ? AppColors.primary : Colors.black).withOpacity(0.12),
-                blurRadius: 25,
-                offset: const Offset(0, 12),
+                color: AppColors.primary.withOpacity(0.5),
+                blurRadius: 30,
+                spreadRadius: 2,
+                offset: const Offset(0, 15),
+              )
+            else if (isSelected)
+              BoxShadow(
+                color: Colors.white.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
               ),
           ],
         ),
@@ -360,78 +461,118 @@ class _ProPageState extends ConsumerState<ProPage> {
           children: [
             if (badge != null)
               Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
                     colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
                   ),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF9800).withOpacity(0.4),
+                      blurRadius: 10,
+                      spreadRadius: 1,
+                    ),
+                  ],
                 ),
-                child: Text(
-                  badge,
-                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star, color: Colors.white, size: 12),
+                    const SizedBox(width: 4),
+                    Text(
+                      badge,
+                      style: const TextStyle(
+                        color: Colors.white, 
+                        fontSize: 10, 
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+              )
+                .animate()
+                .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut)
+                .shimmer(duration: 2000.ms, delay: 500.ms, color: Colors.orange.withOpacity(0.5)),
             Text(
               title,
               style: TextStyle(
                 fontWeight: FontWeight.w900,
-                fontSize: 13,
-                color: isProCard ? AppColors.primary : Colors.black54,
-                letterSpacing: 1.5,
+                fontSize: 16,
+                color: isProCard 
+                    ? (isSelected ? Colors.white : AppColors.primary)
+                    : (isSelected ? Colors.white : Colors.white70),
+                letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
                     text: price,
-                    style: const TextStyle(
-                      fontSize: 28, 
+                    style: TextStyle(
+                      fontSize: 32, 
                       fontWeight: FontWeight.w900, 
-                      color: Colors.black,
+                      color: isSelected ? Colors.white : Colors.white70,
                     ),
                   ),
                   if (period.isNotEmpty)
                     TextSpan(
                       text: period,
                       style: TextStyle(
-                        fontSize: 12, 
-                        color: Colors.grey[600], 
+                        fontSize: 14, 
+                        color: Colors.white.withOpacity(0.6), 
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            ...features.map((f) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle_rounded, 
-                    size: 16, 
-                    color: isProCard ? AppColors.primary : Colors.green,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      f,
-                      style: const TextStyle(
-                        fontSize: 11, 
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w600,
+            const SizedBox(height: 24),
+            ...features.asMap().entries.map((entry) {
+              final index = entry.key;
+              final f = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isProCard 
+                            ? AppColors.primary.withOpacity(0.2)
+                            : Colors.green.withOpacity(0.2),
+                        shape: BoxShape.circle,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      child: Icon(
+                        Icons.check_circle_rounded, 
+                        size: 18, 
+                        color: isProCard ? AppColors.primary : Colors.green,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            )).toList(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        f,
+                        style: TextStyle(
+                          fontSize: 13, 
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                )
+                  .animate()
+                  .fadeIn(duration: 300.ms, delay: (index * 100).ms)
+                  .slideX(begin: -0.2, end: 0),
+              );
+            }).toList(),
           ],
         ),
       ),
@@ -503,6 +644,7 @@ class _ProPageState extends ConsumerState<ProPage> {
             title: 'Advanced Analytics',
             description: 'Get deep insights into your batting & bowling metrics.',
             color: Colors.blue,
+            index: 0,
           ),
           const SizedBox(height: 20),
           _buildModernBenefitItem(
@@ -510,6 +652,7 @@ class _ProPageState extends ConsumerState<ProPage> {
             title: 'Live Streaming',
             description: 'Broadcast your local matches with pro scoreboard overlays.',
             color: Colors.red,
+            index: 1,
           ),
           const SizedBox(height: 20),
           _buildModernBenefitItem(
@@ -517,6 +660,7 @@ class _ProPageState extends ConsumerState<ProPage> {
             title: 'Tourney Discounts',
             description: 'Enjoy exclusive entry fee discounts on major tournaments.',
             color: Colors.orange,
+            index: 2,
           ),
           const SizedBox(height: 20),
           _buildModernBenefitItem(
@@ -525,6 +669,7 @@ class _ProPageState extends ConsumerState<ProPage> {
             description: 'Enhanced visibility in regional leaderboards & MVP lists.',
             color: Colors.purple,
             isNew: true,
+            index: 3,
           ),
         ],
       ),
@@ -537,32 +682,56 @@ class _ProPageState extends ConsumerState<ProPage> {
     required String description,
     required Color color,
     bool isNew = false,
+    required int index,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1A1F2E),
+            const Color(0xFF151925),
+          ],
+        ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.grey[100]!),
+        border: Border.all(color: color.withOpacity(0.2), width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: color.withOpacity(0.1),
+            blurRadius: 15,
+            spreadRadius: 1,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  color.withOpacity(0.2),
+                  color.withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: color.withOpacity(0.3), width: 1),
+              boxShadow: [
+                BoxShadow(
+                  color: color.withOpacity(0.2),
+                  blurRadius: 10,
+                  spreadRadius: 1,
+                ),
+              ],
             ),
-            child: Icon(icon, color: color, size: 28),
-          ),
-          const SizedBox(width: 16),
+            child: Icon(icon, color: color, size: 30),
+          )
+            .animate()
+            .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut),
+          const SizedBox(width: 18),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -572,38 +741,48 @@ class _ProPageState extends ConsumerState<ProPage> {
                     Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 17,
                         fontWeight: FontWeight.w800,
-                        color: Colors.black87,
+                        color: Colors.white,
+                        letterSpacing: 0.3,
                       ),
                     ),
                     if (isNew) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: Colors.purple.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
+                          gradient: LinearGradient(
+                            colors: [Colors.purple, Colors.purple.shade700],
+                          ),
+                          borderRadius: BorderRadius.circular(6),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.purple.withOpacity(0.4),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
                         child: const Text(
                           'NEW',
                           style: TextStyle(
-                            color: Colors.purple,
-                            fontSize: 8,
+                            color: Colors.white,
+                            fontSize: 9,
                             fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Text(
                   description,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Colors.black54,
-                    height: 1.3,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.7),
+                    height: 1.4,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -612,7 +791,11 @@ class _ProPageState extends ConsumerState<ProPage> {
           ),
         ],
       ),
-    );
+    )
+      .animate()
+      .fadeIn(duration: 500.ms, delay: (700 + index * 150).ms)
+      .slideX(begin: -0.3, end: 0, duration: 500.ms, delay: (700 + index * 150).ms, curve: Curves.easeOutCubic)
+      .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1), duration: 500.ms, delay: (700 + index * 150).ms);
   }
 
   Widget _buildSectionHeader(String title) {
@@ -621,26 +804,35 @@ class _ProPageState extends ConsumerState<ProPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.star, size: 12, color: Colors.black54),
-            const SizedBox(width: 8),
+            Icon(Icons.star, size: 14, color: AppColors.primary.withOpacity(0.8)),
+            const SizedBox(width: 10),
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-                letterSpacing: 1.5,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: 2,
               ),
             ),
-            const SizedBox(width: 8),
-            const Icon(Icons.star, size: 12, color: Colors.black54),
+            const SizedBox(width: 10),
+            Icon(Icons.star, size: 14, color: AppColors.primary.withOpacity(0.8)),
           ],
         ),
         Container(
-          margin: const EdgeInsets.only(top: 8, bottom: 24),
-          height: 1,
-          width: 40,
-          color: Colors.black12,
+          margin: const EdgeInsets.only(top: 12, bottom: 28),
+          height: 2,
+          width: 60,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.transparent,
+                AppColors.primary.withOpacity(0.6),
+                Colors.transparent,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
       ],
     );
@@ -649,25 +841,53 @@ class _ProPageState extends ConsumerState<ProPage> {
   Widget _buildBranding() {
     return Column(
       children: [
-        const Text(
-          'PitchPoint',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 24,
-            fontWeight: FontWeight.w800,
-            color: Colors.black87,
-            fontStyle: FontStyle.italic,
-            letterSpacing: -0.5,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.sports_cricket, color: AppColors.primary, size: 28)
+              .animate()
+              .rotate(begin: -0.3, end: 0, duration: 800.ms, delay: 100.ms),
+            const SizedBox(width: 12),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Colors.white, AppColors.primary, Colors.white],
+              ).createShader(bounds),
+              child: const Text(
+                'PitchPoint',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  fontStyle: FontStyle.italic,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            )
+              .animate()
+              .shimmer(duration: 2000.ms, delay: 300.ms, color: AppColors.primary.withOpacity(0.5)),
+            const SizedBox(width: 12),
+            Icon(Icons.sports_cricket, color: AppColors.primary, size: 28)
+              .animate()
+              .rotate(begin: 0.3, end: 0, duration: 800.ms, delay: 200.ms),
+          ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          'MEMBER',
-          style: TextStyle(
-            fontSize: 11,
-            letterSpacing: 4,
-            color: Colors.black.withOpacity(0.5),
-            fontWeight: FontWeight.w600,
+        const SizedBox(height: 8),
+        ShaderMask(
+          shaderCallback: (bounds) => LinearGradient(
+            colors: [
+              Colors.white.withOpacity(0.9),
+              Colors.white.withOpacity(0.7),
+            ],
+          ).createShader(bounds),
+          child: Text(
+            'MEMBER',
+            style: TextStyle(
+              fontSize: 13,
+              letterSpacing: 6,
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
@@ -677,30 +897,47 @@ class _ProPageState extends ConsumerState<ProPage> {
   Widget _buildHeroText() {
     return Column(
       children: [
-        Text(
-          'PLAY LIKE',
-          style: TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            color: AppColors.primary,
-            height: 0.9,
-            letterSpacing: -1.5,
-            fontStyle: FontStyle.italic,
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF00D4FF), AppColors.primary, Color(0xFF0066FF), Color(0xFF00D4FF)],
+            stops: [0.0, 0.3, 0.7, 1.0],
+          ).createShader(bounds),
+          child: const Text(
+            'PLAY LIKE',
+            style: TextStyle(
+              fontSize: 52,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              height: 0.9,
+              letterSpacing: -1.5,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
-        Text(
-          'A PRO',
-          style: TextStyle(
-            fontSize: 42,
-            fontWeight: FontWeight.w900,
-            color: AppColors.primary,
-            height: 0.9,
-            letterSpacing: -1.5,
-            fontStyle: FontStyle.italic,
+        )
+          .animate()
+          .shimmer(duration: 3000.ms, delay: 500.ms, color: Colors.white.withOpacity(0.3)),
+        const SizedBox(height: 8),
+        ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [AppColors.primary, Color(0xFF00D4FF), Color(0xFF0066FF), AppColors.primary],
+            stops: [0.0, 0.3, 0.7, 1.0],
+          ).createShader(bounds),
+          child: const Text(
+            'A PRO',
+            style: TextStyle(
+              fontSize: 52,
+              fontWeight: FontWeight.w900,
+              color: Colors.white,
+              height: 0.9,
+              letterSpacing: -1.5,
+              fontStyle: FontStyle.italic,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
-        ),
+        )
+          .animate()
+          .shimmer(duration: 3000.ms, delay: 700.ms, color: Colors.white.withOpacity(0.3)),
       ],
     );
   }
@@ -774,4 +1011,214 @@ class SunburstPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// Cricket-themed decorative widgets
+Widget _buildCommentaryMic() {
+  return Container(
+    width: 60,
+    height: 60,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          AppColors.primary.withOpacity(0.3),
+          AppColors.primary.withOpacity(0.1),
+          Colors.transparent,
+        ],
+      ),
+    ),
+    child: Icon(
+      Icons.mic,
+      color: AppColors.primary.withOpacity(0.7),
+      size: 36,
+    ),
+  );
+}
+
+Widget _buildCommentarySpeaker() {
+  return Container(
+    width: 60,
+    height: 60,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          AppColors.primary.withOpacity(0.3),
+          AppColors.primary.withOpacity(0.1),
+          Colors.transparent,
+        ],
+      ),
+    ),
+    child: Icon(
+      Icons.graphic_eq,
+      color: AppColors.primary.withOpacity(0.7),
+      size: 36,
+    ),
+  );
+}
+
+Widget _buildCricketBall() {
+  return Container(
+    width: 50,
+    height: 50,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          const Color(0xFFFFD700).withOpacity(0.4),
+          const Color(0xFFFFA500).withOpacity(0.2),
+          Colors.transparent,
+        ],
+      ),
+    ),
+    child: Container(
+      margin: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFF8B4513).withOpacity(0.6),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildFloatingCricketBall(int index) {
+  final positions = [
+    const Offset(50, 120),
+    const Offset(300, 80),
+    const Offset(80, 200),
+    const Offset(280, 180),
+    const Offset(120, 250),
+    const Offset(250, 220),
+    const Offset(60, 300),
+    const Offset(320, 280),
+  ];
+  
+  final delays = [100, 200, 300, 400, 500, 600, 700, 800];
+  final sizes = [16.0, 20.0, 18.0, 22.0, 16.0, 20.0, 18.0, 22.0];
+  
+  return Positioned(
+    left: positions[index].dx,
+    top: positions[index].dy,
+    child: Container(
+      width: sizes[index],
+      height: sizes[index],
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            const Color(0xFFFFD700).withOpacity(0.5),
+            const Color(0xFFFFA500).withOpacity(0.3),
+          ],
+        ),
+        border: Border.all(
+          color: AppColors.primary.withOpacity(0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withOpacity(0.2),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: Center(
+        child: Container(
+          width: sizes[index] * 0.3,
+          height: sizes[index] * 0.3,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF8B4513).withOpacity(0.8),
+          ),
+        ),
+      ),
+    )
+      .animate()
+      .fadeIn(duration: 1000.ms, delay: delays[index].ms)
+      .scale(begin: const Offset(0, 0), end: const Offset(1, 1), curve: Curves.elasticOut)
+      .then()
+      .shimmer(duration: 2000.ms, color: AppColors.primary.withOpacity(0.5)),
+  );
+}
+
+Widget _buildSmallCricketBall() {
+  return Container(
+    width: 28,
+    height: 28,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          const Color(0xFFFFD700).withOpacity(0.6),
+          const Color(0xFFFFA500).withOpacity(0.4),
+        ],
+      ),
+      border: Border.all(
+        color: AppColors.primary.withOpacity(0.5),
+        width: 2,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: AppColors.primary.withOpacity(0.3),
+          blurRadius: 8,
+          spreadRadius: 1,
+        ),
+      ],
+    ),
+    child: Center(
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF8B4513).withOpacity(0.9),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildTinyCricketBall() {
+  return Container(
+    width: 12,
+    height: 12,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: RadialGradient(
+        colors: [
+          const Color(0xFFFFD700).withOpacity(0.7),
+          const Color(0xFFFFA500).withOpacity(0.5),
+        ],
+      ),
+      border: Border.all(
+        color: AppColors.primary.withOpacity(0.6),
+        width: 1,
+      ),
+    ),
+    child: Center(
+      child: Container(
+        width: 4,
+        height: 4,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF8B4513).withOpacity(0.9),
+        ),
+      ),
+    ),
+  );
 }
