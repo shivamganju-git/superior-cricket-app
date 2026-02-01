@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/models/tournament_model.dart';
+import '../../core/models/match_model.dart';
 
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/onboarding_page.dart';
@@ -53,6 +54,7 @@ import '../../features/match/presentation/pages/commentary_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/subscription/presentation/pages/subscription_page.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/repository_providers.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
@@ -441,8 +443,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/commentary/:matchId',
         builder: (context, state) {
           final matchId = state.pathParameters['matchId']!;
-          // Match status will be fetched by CommentaryPage if needed
-          return CommentaryPage(matchId: matchId, showAppBar: true);
+          final ref = ProviderScope.containerOf(context);
+          return FutureBuilder<MatchModel?>(
+            future: ref.read(matchRepositoryProvider).getMatchById(matchId),
+            builder: (context, snapshot) {
+              final match = snapshot.data;
+              return CommentaryPage(
+                matchId: matchId,
+                showAppBar: true,
+                matchStatus: match?.status,
+                team1Name: match?.team1Name,
+                team2Name: match?.team2Name,
+              );
+            },
+          );
         },
       ),
       // Subscription Route

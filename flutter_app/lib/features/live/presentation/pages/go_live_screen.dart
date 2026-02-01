@@ -584,7 +584,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
   }
 
   Timer? _scorecardPollTimer;
-  
+
   // Subscribe to live scorecard updates (using polling)
   void _subscribeToLiveScorecard() {
     // Fetch initial scorecard
@@ -632,8 +632,8 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
           // The periodic timer will also update it, but this ensures immediate updates on changes
           Future.delayed(const Duration(milliseconds: 300), () {
             if (mounted && _isStreaming) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _updateStreamOverlay();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _updateStreamOverlay();
               });
             }
           });
@@ -1192,12 +1192,12 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                             child: InkWell(
                               onTap: _isLoading ? null : _stopStreaming,
                               borderRadius: BorderRadius.circular(30),
-                              child: Container(
+                        child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                                   color: Colors.red.withOpacity(0.9),
                                   borderRadius: BorderRadius.circular(30),
-                                  boxShadow: [
+                            boxShadow: [
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.3),
                                       blurRadius: 8,
@@ -1205,10 +1205,10 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                                       offset: const Offset(0, 2),
                                     )
                                   ],
-                                ),
+                          ),
                                 child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
                                     const Icon(Icons.stop_circle, size: 20, color: Colors.white),
                                     const SizedBox(width: 8),
                                     const Text(
@@ -1219,7 +1219,7 @@ class _GoLiveScreenState extends ConsumerState<GoLiveScreen> {
                                         fontSize: 14,
                                       ),
                                     ),
-                                  ],
+                            ],
                                 ),
                               ),
                             ),

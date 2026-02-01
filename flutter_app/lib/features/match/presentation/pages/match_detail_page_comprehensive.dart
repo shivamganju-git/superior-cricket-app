@@ -1728,7 +1728,12 @@ List<String> _getDidNotBatPlayers(
     return Stack(
       children: [
         // Commentary content
-        CommentaryPage(matchId: match.id),
+        CommentaryPage(
+          matchId: match.id,
+          matchStatus: match.status,
+          team1Name: match.team1Name,
+          team2Name: match.team2Name,
+        ),
         // View Full Commentary button at bottom-right
         Positioned(
           bottom: 20,

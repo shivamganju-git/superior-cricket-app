@@ -7,7 +7,7 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/providers/repository_providers.dart';
 import '../../../../core/models/commentary_model.dart';
-import '../../../../core/services/commentary_service.dart';
+import '../../../../core/services/human_commentary_engine.dart';
 import '../../../../core/repositories/commentary_repository.dart';
 import 'dart:async';
 import 'package:uuid/uuid.dart';
@@ -2696,6 +2696,7 @@ class _ScorecardPageState extends ConsumerState<ScorecardPage> {
       _crr = 0.0;
       _projected = 0;
       _currentOverBalls = [];
+      _currentOverBallData = []; // Clear over ball data for second innings
       _overHistory = [];
       _dismissedPlayers = [];
       _usedBowlers = [];
@@ -4971,19 +4972,35 @@ class _ScorecardPageState extends ConsumerState<ScorecardPage> {
           displayValue = runs.toString();
         }
         
+        // Ensure we're tracking balls for the correct over
+        // If _currentOverBallData has balls from a different over, clear it first
+        if (_currentOverBallData.isNotEmpty) {
+          // Check if we're starting a new over (ball == 1 and we have 6 balls from previous over)
+          if (ball == 1 && _currentOverBallData.length >= 6) {
+            print('Over Summary: WARNING - Starting new over but _currentOverBallData has ${_currentOverBallData.length} balls. Clearing it.');
+            _currentOverBallData.clear();
+          }
+        }
+        
         _currentOverBallData.add({
           'runs': runs,
           'isWicket': ballType == 'wicket',
           'displayValue': displayValue,
         });
+        
+        print('Over Summary: Added ball $ball to over $over - displayValue: $displayValue, runs: $runs, total balls in over: ${_currentOverBallData.length}');
 
         // Check if over is complete (ball == 6 means we just completed the 6th legal ball)
         // Generate summary AFTER the 6th ball, positioned AFTER 0.6 (not before)
         if (ball == 6) {
           // Generate summary for the completed over
           // Position it AFTER the last ball (0.6) by using over + 0.7
+          print('Over Summary: Over $over complete (ball 6 reached) in innings $_currentInnings, generating summary with ${_currentOverBallData.length} balls');
           await _generateOverSummary(over);
           _currentOverBallData.clear();
+          print('Over Summary: Cleared _currentOverBallData after generating summary for over $over');
+        } else {
+          print('Over Summary: Over $over, ball $ball - not complete yet (need 6 balls, have ${_currentOverBallData.length})');
         }
       } else {
         // For invalid balls (wides/no-balls), use CURRENT valid ball position
@@ -4993,9 +5010,9 @@ class _ScorecardPageState extends ConsumerState<ScorecardPage> {
         overDecimal = over + (ball / 10.0);
       }
 
-      // Generate CricHeroes-style commentary text
+      // Generate human-like commentary text
       // Use the provided strikerName (who faced the ball) for correct attribution
-      final commentaryText = CommentaryService.generateCommentary(
+      final commentaryText = HumanCommentaryEngine.generateCommentary(
         over: overDecimal,
         ballType: ballType,
         runs: runs,
@@ -5041,22 +5058,84 @@ class _ScorecardPageState extends ConsumerState<ScorecardPage> {
     }
   }
   
-  /// Generate and save over summary
+  /// Generate and save over summary using ScorecardEngine
   /// Called when 6 valid balls are completed
   /// overNumber is the completed over (e.g., 0 means over 0 is done, 1 means over 1 is done)
   /// ICC Rule: Over summary appears AFTER the 6th legal ball (0.6, 1.6, etc.)
+  /// Uses ScorecardEngine to calculate accurate stats from deliveries
   Future<void> _generateOverSummary(int overNumber) async {
-    if (widget.matchId == null || _currentOverBallData.isEmpty) return;
+    if (widget.matchId == null) {
+      print('Over Summary: Skipping - matchId is null');
+      return;
+    }
     
     try {
-      // Use the ball data we've been tracking (before it was cleared)
-      // Get display values for the 6 legal balls (e.g., "4", "0", "W", "B2", "LB1", "6")
-      final ballDisplayValues = _currentOverBallData.map((b) => b['displayValue'] as String).toList();
-      final ballRuns = _currentOverBallData.map((b) => b['runs'] as int).toList();
-      final ballWickets = _currentOverBallData.map((b) => b['isWicket'] as bool).toList();
+      // Get deliveries for the current innings
+      // _deliveries always contains the current innings deliveries
+      // In second innings, _firstInningsDeliveries contains first innings data
+      final currentInningsDeliveries = _deliveries;
       
-      final runsInOver = ballRuns.fold(0, (sum, runs) => sum + runs);
-      final wicketsInOver = ballWickets.where((w) => w).length;
+      // Filter deliveries for this specific over (only legal balls)
+      final overDeliveries = currentInningsDeliveries
+          .where((d) => d.over == overNumber && d.isLegalBall)
+          .toList();
+      
+      if (overDeliveries.isEmpty) {
+        print('Over Summary: Skipping over $overNumber - no deliveries found for this over');
+        return;
+      }
+      
+      // Sort by ball number to ensure correct order (1, 2, 3, 4, 5, 6)
+      overDeliveries.sort((a, b) => a.ball.compareTo(b.ball));
+      
+      if (overDeliveries.length != 6) {
+        print('Over Summary: WARNING - Over $overNumber has ${overDeliveries.length} legal balls instead of 6');
+      }
+      
+      // Convert to DeliveryModel for ScorecardEngine
+      final deliveryModels = overDeliveries.map(_deliveryToModel).toList();
+      
+      // Calculate over stats using ScorecardEngine
+      final teamName = _currentInnings == 2 && _firstInningsDeliveries.isNotEmpty
+          ? _battingTeam
+          : (_currentInnings == 1 ? _battingTeam : _bowlingTeam);
+      
+      final overScorecard = ScorecardEngine.calculateScorecard(
+        deliveries: deliveryModels,
+        teamName: teamName,
+      );
+      
+      // Extract ball display values from deliveries
+      final ballDisplayValues = <String>[];
+      for (final delivery in overDeliveries) {
+        String displayValue;
+        if (delivery.wicketType != null) {
+          displayValue = delivery.wicketType == 'Run Out' ? 'RO' : 'W';
+        } else if (delivery.extraType != null) {
+          if (delivery.extraType == 'B') {
+            displayValue = delivery.extraRuns != null && delivery.extraRuns! > 0 
+                ? 'B${delivery.extraRuns}' 
+                : 'B';
+          } else if (delivery.extraType == 'LB') {
+            displayValue = delivery.extraRuns != null && delivery.extraRuns! > 0 
+                ? 'LB${delivery.extraRuns}' 
+                : 'LB';
+          } else {
+            displayValue = (delivery.runs + (delivery.extraRuns ?? 0)).toString();
+          }
+        } else {
+          displayValue = delivery.runs.toString();
+        }
+        ballDisplayValues.add(displayValue);
+      }
+      
+      // Get runs and wickets from ScorecardEngine (accurate calculation)
+      // Calculate total runs from deliveries in this over (runs + extras)
+      final runsInOver = deliveryModels.fold<int>(0, (sum, d) => sum + d.totalRuns);
+      final wicketsInOver = overScorecard.totalWickets;
+      
+      print('Over Summary: Generating for over $overNumber (innings $_currentInnings) using ScorecardEngine');
+      print('Over Summary: Balls: ${ballDisplayValues.join(' ')}, Runs: $runsInOver, Wickets: $wicketsInOver');
       
       // Get current batting pair stats AFTER end-of-over strike rotation
       // (strike has already rotated at this point)
@@ -5066,8 +5145,10 @@ class _ScorecardPageState extends ConsumerState<ScorecardPage> {
       final nonStrikerBalls = _nonStrikerBalls;
       
       // Create over summary entry with enhanced format
-      // Format: "OVER 0\n4 0 W B2 LB1 6\n13 Runs | 1 Wkt | 95/3\nStriker: Player1 45(30) | Non-Striker: Player2 12(18)"
-      final summaryText = 'OVER $overNumber\n'
+      // Format: "OVER 1\n4 0 W B2 LB1 6\n13 Runs | 1 Wkt | 95/3\nStriker: Player1 45(30) | Non-Striker: Player2 12(18)"
+      // Display over number as overNumber + 1 (0-based to 1-based for display)
+      final displayOverNumber = overNumber + 1;
+      final summaryText = 'OVER $displayOverNumber\n'
           '${ballDisplayValues.join(' ')}\n'
           '$runsInOver Runs | $wicketsInOver Wkt | $_totalRuns/$_wickets\n'
           'Striker: $_striker $strikerRuns($strikerBalls) | Non-Striker: $_nonStriker $nonStrikerRuns($nonStrikerBalls)';

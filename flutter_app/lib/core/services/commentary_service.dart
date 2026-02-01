@@ -119,24 +119,22 @@ class CommentaryService {
     String? shotDirection,
     String? shotType,
   }) {
-    // CricHeroes style: "15.3 Akash to Utkarsh Pandita, FOUR, to deep extra cover"
+    // Enhanced emotional commentary for boundaries
+    final emotionalPhrases = [
+      'plays an aggressive',
+      'strikes a powerful',
+      'hits a magnificent',
+      'smashes a brilliant',
+      'cracks a stunning',
+    ];
+    final randomPhrase = emotionalPhrases[DateTime.now().millisecond % emotionalPhrases.length];
+    
     String directionText = '';
     if (shotDirection != null) {
-      final directionMap = {
-        'cover': 'deep extra cover',
-        'midwicket': 'deep midwicket',
-        'straight': 'straight down the ground',
-        'square': 'square of the wicket',
-        'fine': 'fine leg',
-        'third': 'third man',
-        'point': 'deep point',
-        'midoff': 'deep mid-off',
-        'midon': 'deep mid-on',
-      };
-      directionText = ', to ${directionMap[shotDirection] ?? shotDirection}';
+      directionText = ' towards ${_formatDirection(shotDirection)}';
     }
     
-    return '$overStr $bowlerName to $strikerName, FOUR$directionText';
+    return '$overStr $bowlerName bowling to $strikerName, ${_getBallLength()}, pitching ${_getPitchLocation()}, $strikerName $randomPhrase ${_getShotType(shotType)} for 4 runs$directionText';
   }
   
   static String _generateSixCommentary({
@@ -146,22 +144,22 @@ class CommentaryService {
     String? shotDirection,
     String? shotType,
   }) {
-    // CricHeroes style: "15.4 Akash to Utkarsh Pandita, SIX, to long-on"
+    // Enhanced emotional commentary for sixes
+    final emotionalPhrases = [
+      'launches a massive',
+      'sends it soaring with a',
+      'deposits it into the stands with a',
+      'clears the boundary with a thunderous',
+      'hits a colossal',
+    ];
+    final randomPhrase = emotionalPhrases[DateTime.now().millisecond % emotionalPhrases.length];
+    
     String directionText = '';
     if (shotDirection != null) {
-      final directionMap = {
-        'cover': 'over covers',
-        'midwicket': 'over midwicket',
-        'straight': 'straight down the ground',
-        'square': 'over square leg',
-        'fine': 'over fine leg',
-        'longon': 'to long-on',
-        'longoff': 'to long-off',
-      };
-      directionText = ', to ${directionMap[shotDirection] ?? shotDirection}';
+      directionText = ' towards ${_formatDirection(shotDirection)}';
     }
     
-    return '$overStr $bowlerName to $strikerName, SIX$directionText';
+    return '$overStr $bowlerName bowling to $strikerName, ${_getBallLength()}, pitching ${_getPitchLocation()}, $strikerName $randomPhrase ${_getShotType(shotType)} for SIX runs$directionText';
   }
   
   static String _generateExtraCommentary({
@@ -209,27 +207,79 @@ class CommentaryService {
     String? shotDirection,
     String? shotType,
   }) {
-    // CricHeroes style: "15.1 Akash to Utkarsh Pandita, no run"
+    // Enhanced emotional commentary
+    final emotionalPhrases = [
+      'uncomfortably plays',
+      'aggressively plays',
+      'confidently plays',
+      'elegantly plays',
+      'powerfully plays',
+      'skillfully plays',
+    ];
+    final randomPhrase = emotionalPhrases[(runs * 7) % emotionalPhrases.length];
+    
+    // CricHeroes style with emotional commentary
     if (runs == 0) {
-      return '$overStr $bowlerName to $strikerName, no run';
+      final directionText = shotDirection != null ? ' towards ${_formatDirection(shotDirection)}' : '';
+      return '$overStr $bowlerName bowling to $strikerName, ${_getBallLength()}, pitching ${_getPitchLocation()}, $strikerName $randomPhrase ${_getShotType(shotType)} on the ${_getFootPosition()}, no run$directionText';
     }
     
     if (runs == 1) {
-      String directionText = shotDirection != null ? ', to $shotDirection' : '';
-      return '$overStr $bowlerName to $strikerName, 1 run$directionText';
+      final directionText = shotDirection != null ? ' towards ${_formatDirection(shotDirection)}' : '';
+      return '$overStr $bowlerName bowling to $strikerName, ${_getBallLength()}, pitching ${_getPitchLocation()}, $strikerName $randomPhrase ${_getShotType(shotType)} for a single$directionText';
     }
     
     if (runs == 2) {
-      String directionText = shotDirection != null ? ', to $shotDirection' : '';
-      return '$overStr $bowlerName to $strikerName, 2 runs$directionText';
+      final directionText = shotDirection != null ? ' towards ${_formatDirection(shotDirection)}' : '';
+      return '$overStr $bowlerName bowling to $strikerName, ${_getBallLength()}, pitching ${_getPitchLocation()}, $strikerName $randomPhrase ${_getShotType(shotType)} for a couple$directionText';
     }
     
     if (runs == 3) {
-      String directionText = shotDirection != null ? ', to $shotDirection' : '';
-      return '$overStr $bowlerName to $strikerName, 3 runs$directionText';
+      final directionText = shotDirection != null ? ' towards ${_formatDirection(shotDirection)}' : '';
+      return '$overStr $bowlerName bowling to $strikerName, ${_getBallLength()}, pitching ${_getPitchLocation()}, $strikerName $randomPhrase ${_getShotType(shotType)} for three runs$directionText';
     }
     
     return '$overStr $bowlerName to $strikerName, $runs run${runs > 1 ? 's' : ''}';
+  }
+
+  static String _getBallLength() {
+    final lengths = ['good length ball', 'full length ball', 'short of good length ball', 'full toss', 'yorker'];
+    return lengths[DateTime.now().millisecond % lengths.length];
+  }
+
+  static String _getPitchLocation() {
+    final locations = ['outside off stump', 'on middle stump', 'on leg stump', 'outside leg stump', 'on off stump'];
+    return locations[DateTime.now().millisecond % locations.length];
+  }
+
+  static String _getShotType(String? shotType) {
+    if (shotType != null) {
+      return shotType;
+    }
+    final shots = ['off drive', 'cut shot', 'pull shot', 'defensive shot', 'straight drive', 'cover drive'];
+    return shots[DateTime.now().millisecond % shots.length];
+  }
+
+  static String _getFootPosition() {
+    final positions = ['front foot', 'back foot'];
+    return positions[DateTime.now().millisecond % positions.length];
+  }
+
+  static String _formatDirection(String? direction) {
+    if (direction == null) return '';
+    final directionMap = {
+      'cover': 'Short Extra Covers',
+      'point': 'Deep Point',
+      'midwicket': 'Deep Midwicket',
+      'straight': 'Straight',
+      'square': 'Square of the Wicket',
+      'fine': 'Fine Leg',
+      'third': 'Third Man',
+      'midoff': 'Deep Mid-Off',
+      'midon': 'Deep Mid-On',
+      'backwardpoint': 'Deep Backward Point',
+    };
+    return directionMap[direction.toLowerCase()] ?? direction;
   }
 }
 
